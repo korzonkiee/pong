@@ -1,6 +1,3 @@
-// Pong.cpp : Defines the entry point for the application.
-//
-
 #include "stdafx.h"
 #include "Pong.h"
 
@@ -12,18 +9,21 @@
 #define PADDLE_WIDTH 80
 #define PADDLE_HEIGHT 20
 
-// Global Variables:
-HINSTANCE hInst;                                // current instance
-WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+#define BALL_RADIUS 20
+
+HINSTANCE hInst;
+WCHAR szTitle[MAX_LOADSTRING];
+WCHAR szWindowClass[MAX_LOADSTRING];
 WCHAR szPaddleWindowClass[MAX_LOADSTRING];
+WCHAR szBallWindowClass[MAX_LOADSTRING];
 
 
-// Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 ATOM				PaddleRegisterClass(HINSTANCE hInstance);
+ATOM				BallRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
-void				CalculatorPaddleInitialPosition(HWND hWnd, int *x, int *y);
+void				CalculatePaddleInitialPosition(HWND hWnd, int *x, int *y);
+void				CalculateBallInitialPosition(HWND hWnd, int *x, int *y);
 void				AddWindowTransparency(HWND hWnd, int alpha);
 void				CenterWindow(HWND hWnd);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -37,16 +37,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
-	// TODO: Place code here.
-
-	// Initialize global strings
 	LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
 	LoadStringW(hInstance, IDC_PONG, szWindowClass, MAX_LOADSTRING);
 	LoadStringW(hInstance, IDC_PADDLE, szPaddleWindowClass, MAX_LOADSTRING);
+	LoadStringW(hInstance, IDC_BALL, szBallWindowClass, MAX_LOADSTRING);
 	MyRegisterClass(hInstance);
 	PaddleRegisterClass(hInstance);
+	BallRegisterClass(hInstance);
 
-	// Perform application initialization:
 	if (!InitInstance(hInstance, nCmdShow))
 	{
 		return FALSE;
@@ -56,7 +54,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 	MSG msg;
 
-	// Main message loop:
 	while (GetMessage(&msg, nullptr, 0, 0))
 	{
 		if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
@@ -69,13 +66,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	return (int)msg.wParam;
 }
 
-
-
-//
-//  FUNCTION: MyRegisterClass()
-//
-//  PURPOSE: Registers the window class.
-//
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
 	WNDCLASSEXW wcex;
@@ -118,19 +108,33 @@ ATOM PaddleRegisterClass(HINSTANCE hInstance)
 	return RegisterClassExW(&wcex);
 }
 
-//
-//   FUNCTION: InitInstance(HINSTANCE, int)
-//
-//   PURPOSE: Saves instance handle and creates main window
-//
-//   COMMENTS:
-//
-//        In this function, we save the instance handle in a global variable and
-//        create and display the main program window.
-//
+ATOM BallRegisterClass(HINSTANCE hInstance)
+{
+	WNDCLASSEXW wcex;
+
+	wcex.cbSize = sizeof(WNDCLASSEX);
+
+	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = WndProc;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PONG));
+	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wcex.hbrBackground = CreateSolidBrush(RGB(255, 0, 0));
+	wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_BALL);
+	wcex.lpszClassName = szBallWindowClass;
+	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+
+	return RegisterClassExW(&wcex);
+}
+
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-	hInst = hInstance; // Store instance handle in our global variable
+	hInst = hInstance;
+
+
+	// Create main window
 
 	HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_EX_LAYERED | WS_MAXIMIZEBOX,
 		CW_USEDEFAULT, 0, WINDOW_WIDTH, WINDOW_HEIGHT, nullptr, nullptr, hInstance, nullptr);
@@ -146,8 +150,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
+
+	// Create paddle window
+
 	int paddleX, paddleY;
-	CalculatorPaddleInitialPosition(hWnd, &paddleX, &paddleY);
+	CalculatePaddleInitialPosition(hWnd, &paddleX, &paddleY);
 
 	HWND paddlehWnd = CreateWindowExW(0, szPaddleWindowClass, szTitle, WS_CHILD | WS_VISIBLE | WS_OVERLAPPED,
 		paddleX, paddleY, PADDLE_WIDTH, PADDLE_HEIGHT, hWnd, nullptr, hInstance, nullptr);
@@ -158,21 +165,49 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	}
 
 	AddWindowTransparency(paddlehWnd, 100);
-
 	ShowWindow(paddlehWnd, nCmdShow);
 	UpdateWindow(paddlehWnd);
 
 
+	// Create ball window
+
+	int ballX, ballY;
+	CalculateBallInitialPosition(hWnd, &ballX, &ballY);
+
+	HWND ballhWnd = CreateWindowExW(0, szBallWindowClass, szTitle, WS_CHILD | WS_VISIBLE | WS_OVERLAPPED,
+		ballX, ballY, BALL_RADIUS, BALL_RADIUS, hWnd, nullptr, hInstance, nullptr);
+
+	if (!ballhWnd)
+	{
+		return FALSE;
+	}
+
+	HRGN region = CreateEllipticRgn(0, 0, BALL_RADIUS, BALL_RADIUS);
+	SetWindowRgn(ballhWnd, region, true);
+
+	AddWindowTransparency(ballhWnd, 100);
+	ShowWindow(ballhWnd, nCmdShow);
+	UpdateWindow(ballhWnd);
+
 	return TRUE;
 }
 
-void CalculatorPaddleInitialPosition(HWND hWnd, int *x, int *y)
+void CalculatePaddleInitialPosition(HWND hWnd, int *x, int *y)
 {
 	RECT rc;
 	GetClientRect(hWnd, &rc);
 
 	*x = (rc.right - rc.left) / 2 - PADDLE_WIDTH / 2;
 	*y = rc.bottom - rc.top - PADDLE_HEIGHT;
+}
+
+void CalculateBallInitialPosition(HWND hWnd, int *x, int *y)
+{
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+
+	*x = (rc.right - rc.left) / 2 - BALL_RADIUS / 2;
+	*y = (rc.bottom - rc.top) / 2 - BALL_RADIUS / 2;
 }
 
 void AddWindowTransparency(HWND hWnd, int alpha)
@@ -201,16 +236,6 @@ void CenterWindow(HWND hWnd)
 	// SWP_NOZORDER   Retains current ordering (ignores pWndInsertAfter).
 }
 
-//
-//  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-//  PURPOSE:  Processes messages for the main window.
-//
-//  WM_COMMAND  - process the application menu
-//  WM_PAINT    - Paint the main window
-//  WM_DESTROY  - post a quit message and return
-//
-//
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
@@ -218,7 +243,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_COMMAND:
 	{
 		int wmId = LOWORD(wParam);
-		// Parse the menu selections:
 		switch (wmId)
 		{
 		case IDM_ABOUT:
@@ -236,7 +260,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hWnd, &ps);
-		// TODO: Add any drawing code that uses hdc here...
 		EndPaint(hWnd, &ps);
 	}
 	break;
@@ -249,7 +272,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-// Message handler for about box.
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
