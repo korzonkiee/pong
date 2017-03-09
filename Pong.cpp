@@ -9,15 +9,22 @@
 #define WINDOW_WIDTH 200
 #define WINDOW_HEIGHT 300
 
+#define PADDLE_WIDTH 80
+#define PADDLE_HEIGHT 20
+
 // Global Variables:
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+WCHAR szPaddleWindowClass[MAX_LOADSTRING];
+
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
+ATOM				PaddleRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
-void				AddWindowTransparency(HWND hWnd);
+void				CalculatorPaddleInitialPosition(HWND hWnd, int *x, int *y);
+void				AddWindowTransparency(HWND hWnd, int alpha);
 void				CenterWindow(HWND hWnd);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
@@ -35,7 +42,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	// Initialize global strings
 	LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
 	LoadStringW(hInstance, IDC_PONG, szWindowClass, MAX_LOADSTRING);
+	LoadStringW(hInstance, IDC_PADDLE, szPaddleWindowClass, MAX_LOADSTRING);
 	MyRegisterClass(hInstance);
+	PaddleRegisterClass(hInstance);
 
 	// Perform application initialization:
 	if (!InitInstance(hInstance, nCmdShow))
@@ -88,6 +97,27 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 	return RegisterClassExW(&wcex);
 }
 
+ATOM PaddleRegisterClass(HINSTANCE hInstance)
+{
+	WNDCLASSEXW wcex;
+
+	wcex.cbSize = sizeof(WNDCLASSEX);
+
+	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = WndProc;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PONG));
+	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wcex.hbrBackground = (HBRUSH)(COLOR_ACTIVEBORDER + 1);
+	wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_PADDLE);
+	wcex.lpszClassName = szPaddleWindowClass;
+	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+
+	return RegisterClassExW(&wcex);
+}
+
 //
 //   FUNCTION: InitInstance(HINSTANCE, int)
 //
@@ -110,20 +140,46 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		return FALSE;
 	}
 
-	AddWindowTransparency(hWnd);
+	AddWindowTransparency(hWnd, 80);
 	CenterWindow(hWnd);
 
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
+	int paddleX, paddleY;
+	CalculatorPaddleInitialPosition(hWnd, &paddleX, &paddleY);
+
+	HWND paddlehWnd = CreateWindowExW(0, szPaddleWindowClass, szTitle, WS_CHILD | WS_VISIBLE | WS_OVERLAPPED,
+		paddleX, paddleY, PADDLE_WIDTH, PADDLE_HEIGHT, hWnd, nullptr, hInstance, nullptr);
+
+	if (!paddlehWnd)
+	{
+		return FALSE;
+	}
+
+	AddWindowTransparency(paddlehWnd, 100);
+
+	ShowWindow(paddlehWnd, nCmdShow);
+	UpdateWindow(paddlehWnd);
+
+
 	return TRUE;
 }
 
-void AddWindowTransparency(HWND hWnd)
+void CalculatorPaddleInitialPosition(HWND hWnd, int *x, int *y)
+{
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+
+	*x = (rc.right - rc.left) / 2 - PADDLE_WIDTH / 2;
+	*y = rc.bottom - rc.top - PADDLE_HEIGHT;
+}
+
+void AddWindowTransparency(HWND hWnd, int alpha)
 {
 	SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) |
 		WS_EX_LAYERED);
-	SetLayeredWindowAttributes(hWnd, 0, (255 * 80) / 100, LWA_ALPHA);
+	SetLayeredWindowAttributes(hWnd, 0, (255 * alpha) / 100, LWA_ALPHA);
 }
 
 void CenterWindow(HWND hWnd)
