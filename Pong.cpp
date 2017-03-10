@@ -10,6 +10,7 @@
 #define PADDLE_HEIGHT 20
 
 #define BALL_RADIUS 20
+#define BALL_STEP_LENGTH 3
 
 HINSTANCE hInst;
 WCHAR szTitle[MAX_LOADSTRING];
@@ -17,17 +18,27 @@ WCHAR szWindowClass[MAX_LOADSTRING];
 WCHAR szPaddleWindowClass[MAX_LOADSTRING];
 WCHAR szBallWindowClass[MAX_LOADSTRING];
 
+HWND windowhWnd;
+
 
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 ATOM				PaddleRegisterClass(HINSTANCE hInstance);
 ATOM				BallRegisterClass(HINSTANCE hInstance);
+VOID CALLBACK		BallTimerProc(HWND hWnd, UINT message, UINT idTimer, DWORD dwTime);
 BOOL                InitInstance(HINSTANCE, int);
 void				CalculatePaddleInitialPosition(HWND hWnd, int *x, int *y);
 void				CalculateBallInitialPosition(HWND hWnd, int *x, int *y);
 void				AddWindowTransparency(HWND hWnd, int alpha);
 void				CenterWindow(HWND hWnd);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK    BallWndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+
+short int BallDirX = 1;
+short int BallDirY = 1;
+
+int BallX = 100;
+int BallY = 100;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -115,7 +126,7 @@ ATOM BallRegisterClass(HINSTANCE hInstance)
 	wcex.cbSize = sizeof(WNDCLASSEX);
 
 	wcex.style = CS_HREDRAW | CS_VREDRAW;
-	wcex.lpfnWndProc = WndProc;
+	wcex.lpfnWndProc = BallWndProc;
 	wcex.cbClsExtra = 0;
 	wcex.cbWndExtra = 0;
 	wcex.hInstance = hInstance;
@@ -143,6 +154,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	{
 		return FALSE;
 	}
+	windowhWnd = hWnd;
 
 	AddWindowTransparency(hWnd, 80);
 	CenterWindow(hWnd);
@@ -270,6 +282,64 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return 0;
+}
+
+LRESULT CALLBACK BallWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+	case WM_CREATE:
+		SetTimer(hWnd, 0, 50, (TIMERPROC)BallTimerProc);
+		break;
+	case WM_TIMER:
+		break;
+	case WM_COMMAND:
+	{
+		int wmId = LOWORD(wParam);
+		switch (wmId)
+		{
+		case IDM_EXIT:
+			DestroyWindow(hWnd);
+			break;
+		default:
+			return DefWindowProc(hWnd, message, wParam, lParam);
+		}
+	}
+	break;
+	case WM_PAINT:
+	{
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+		EndPaint(hWnd, &ps);
+	}
+	break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	return 0;
+}
+
+VOID CALLBACK BallTimerProc(HWND hWnd, UINT message, UINT idTimer, DWORD dwTime)
+{
+	RECT rect;
+	GetClientRect(windowhWnd, &rect);
+
+	if (BallX + BALL_RADIUS >= rect.right)
+		BallDirX = -1;
+	if (BallX <= rect.left)
+		BallDirX = 1;
+	if (BallY <= rect.top)
+		BallDirY = 1;
+	if (BallY + BALL_RADIUS >= rect.bottom)
+		BallDirY = -1;
+
+	BallX += BALL_STEP_LENGTH * BallDirX;
+	BallY += BALL_STEP_LENGTH * BallDirY;
+
+	MoveWindow(hWnd, BallX, BallY, BALL_RADIUS, BALL_RADIUS, TRUE);
 }
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
