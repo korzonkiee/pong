@@ -10,7 +10,9 @@
 #define PADDLE_HEIGHT 20
 
 #define BALL_RADIUS 20
-#define BALL_STEP_LENGTH 10
+#define BALL_STEP_LENGTH 1
+
+#define SPEED 1
 
 HINSTANCE hInst;
 WCHAR szTitle[MAX_LOADSTRING];
@@ -32,12 +34,18 @@ void				CalculateBallInitialPosition(HWND hWnd, int *x, int *y);
 void				AddWindowTransparency(HWND hWnd, int alpha);
 void				CenterWindow(HWND hWnd);
 void				MovePaddle();
+void				DetectCollisionWithPaddle();
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK    BallWndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
+bool GAMEOVER = false;
+
 short int BallDirX = 1;
 short int BallDirY = 1;
+
+int PaddleX;
+int PaddleY;
 
 int BallX = 100;
 int BallY = 100;
@@ -167,11 +175,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 	// Create paddle window
 
-	int paddleX, paddleY;
-	CalculatePaddleInitialPosition(hWnd, &paddleX, &paddleY);
+	CalculatePaddleInitialPosition(hWnd, &PaddleX, &PaddleY);
 
 	paddlehWnd = CreateWindowExW(0, szPaddleWindowClass, szTitle, WS_CHILD | WS_VISIBLE | WS_OVERLAPPED,
-		paddleX, paddleY, PADDLE_WIDTH, PADDLE_HEIGHT, hWnd, nullptr, hInstance, nullptr);
+		PaddleX, PaddleY, PADDLE_WIDTH, PADDLE_HEIGHT, hWnd, nullptr, hInstance, nullptr);
 
 	if (!paddlehWnd)
 	{
@@ -278,7 +285,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	break;
 	case WM_MOUSEMOVE:
-		MovePaddle();
+		if (!GAMEOVER)
+			MovePaddle();
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
@@ -294,7 +302,7 @@ LRESULT CALLBACK BallWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 	switch (message)
 	{
 	case WM_CREATE:
-		SetTimer(hWnd, 0, 50, (TIMERPROC)BallTimerProc);
+		SetTimer(hWnd, 0, SPEED, (TIMERPROC)BallTimerProc);
 		break;
 	case WM_TIMER:
 		break;
@@ -329,8 +337,14 @@ LRESULT CALLBACK BallWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 
 VOID CALLBACK BallTimerProc(HWND hWnd, UINT message, UINT idTimer, DWORD dwTime)
 {
+	if (GAMEOVER)
+		return;
+
+
 	RECT rect;
 	GetClientRect(windowhWnd, &rect);
+
+	DetectCollisionWithPaddle();
 
 	if (BallX + BALL_RADIUS >= rect.right)
 		BallDirX = -1;
@@ -366,6 +380,21 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	return (INT_PTR)FALSE;
 }
 
+void DetectCollisionWithPaddle()
+{
+	if (BallY + BALL_RADIUS >= PaddleY)
+	{
+		if (BallX < PaddleX || BallX > PaddleX + PADDLE_WIDTH)
+		{
+			GAMEOVER = true;
+		}
+		else
+		{
+			BallDirY *= -1;
+		}
+	}
+}
+
 void MovePaddle()
 {
 	POINT cursorPosition;
@@ -375,9 +404,12 @@ void MovePaddle()
 	RECT windowRect;
 	GetClientRect(windowhWnd, &windowRect);
 
+	PaddleX = cursorPosition.x - PADDLE_WIDTH / 2;
+	PaddleY = windowRect.bottom - PADDLE_HEIGHT;
+
 	MoveWindow(
 		paddlehWnd,
-		cursorPosition.x - PADDLE_WIDTH / 2, windowRect.bottom - PADDLE_HEIGHT,
+		PaddleX, PaddleY,
 		PADDLE_WIDTH, PADDLE_HEIGHT,
 		true
 	);
