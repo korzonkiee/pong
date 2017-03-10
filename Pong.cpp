@@ -10,7 +10,7 @@
 #define PADDLE_HEIGHT 20
 
 #define BALL_RADIUS 20
-#define BALL_STEP_LENGTH 3
+#define BALL_STEP_LENGTH 10
 
 HINSTANCE hInst;
 WCHAR szTitle[MAX_LOADSTRING];
@@ -19,6 +19,7 @@ WCHAR szPaddleWindowClass[MAX_LOADSTRING];
 WCHAR szBallWindowClass[MAX_LOADSTRING];
 
 HWND windowhWnd;
+HWND paddlehWnd;
 
 
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -30,6 +31,7 @@ void				CalculatePaddleInitialPosition(HWND hWnd, int *x, int *y);
 void				CalculateBallInitialPosition(HWND hWnd, int *x, int *y);
 void				AddWindowTransparency(HWND hWnd, int alpha);
 void				CenterWindow(HWND hWnd);
+void				MovePaddle();
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK    BallWndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
@@ -168,7 +170,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	int paddleX, paddleY;
 	CalculatePaddleInitialPosition(hWnd, &paddleX, &paddleY);
 
-	HWND paddlehWnd = CreateWindowExW(0, szPaddleWindowClass, szTitle, WS_CHILD | WS_VISIBLE | WS_OVERLAPPED,
+	paddlehWnd = CreateWindowExW(0, szPaddleWindowClass, szTitle, WS_CHILD | WS_VISIBLE | WS_OVERLAPPED,
 		paddleX, paddleY, PADDLE_WIDTH, PADDLE_HEIGHT, hWnd, nullptr, hInstance, nullptr);
 
 	if (!paddlehWnd)
@@ -275,6 +277,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		EndPaint(hWnd, &ps);
 	}
 	break;
+	case WM_MOUSEMOVE:
+		MovePaddle();
+		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;
@@ -359,4 +364,21 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	return (INT_PTR)FALSE;
+}
+
+void MovePaddle()
+{
+	POINT cursorPosition;
+	GetCursorPos(&cursorPosition);
+	ScreenToClient(windowhWnd, &cursorPosition);
+
+	RECT windowRect;
+	GetClientRect(windowhWnd, &windowRect);
+
+	MoveWindow(
+		paddlehWnd,
+		cursorPosition.x - PADDLE_WIDTH / 2, windowRect.bottom - PADDLE_HEIGHT,
+		PADDLE_WIDTH, PADDLE_HEIGHT,
+		true
+	);
 }
