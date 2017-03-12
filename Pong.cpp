@@ -8,13 +8,13 @@
 #define WINDOW_WIDTH 200
 #define WINDOW_HEIGHT 300
 
-#define PADDLE_WIDTH 80
-#define PADDLE_HEIGHT 20
+#define PADDLE_WIDTH 64
+#define PADDLE_HEIGHT 16
 
-#define BALL_RADIUS 20
-#define BALL_STEP_LENGTH 1
+#define BALL_RADIUS 16
+#define BALL_STEP_LENGTH 5
 
-#define SPEED 1
+#define SPEED 50
 
 HINSTANCE hInst;
 WCHAR szTitle[MAX_LOADSTRING];
@@ -41,6 +41,7 @@ void				DetectCollisionWithPaddle();
 int					GetNumberOfDigits(int x);
 void				ConvertIntToWChar(wchar_t *buffer, int x);
 void				CreateNewGame();
+void				PickAndChangeBackgroundColor();
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	PaddleWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK    BallWndProc(HWND, UINT, WPARAM, LPARAM);
@@ -283,6 +284,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case IDM_NEWGAME:
 			CreateNewGame();
 			break;
+		case IDM_BGCOLOR:
+			PickAndChangeBackgroundColor();
+			break;
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
 			break;
@@ -364,8 +368,7 @@ LRESULT CALLBACK PaddleWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 }
 
 LRESULT CALLBACK BallWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	switch (message)
+{	switch (message)
 	{
 	case WM_CREATE:
 		SetTimer(hWnd, 0, SPEED, (TIMERPROC)BallTimerProc);
@@ -400,8 +403,6 @@ LRESULT CALLBACK BallWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 	}
 	return 0;
 }
-
-
 
 VOID CALLBACK BallTimerProc(HWND hWnd, UINT message, UINT idTimer, DWORD dwTime)
 {
@@ -474,6 +475,10 @@ void MovePaddle()
 	RECT windowRect;
 	GetClientRect(windowhWnd, &windowRect);
 
+	if (cursorPosition.x - PADDLE_WIDTH / 2 < windowRect.left ||
+		cursorPosition.x + PADDLE_WIDTH / 2 > windowRect.right)
+		return;
+
 	PaddleX = cursorPosition.x - PADDLE_WIDTH / 2;
 	PaddleY = windowRect.bottom - PADDLE_HEIGHT;
 
@@ -506,5 +511,32 @@ void CreateNewGame()
 	BallDirX = 1;
 	BallDirY = 1;
 
+	CurrentScore = 0;
+
 	GAMEOVER = false;
+
+	InvalidateRect(paddlehWnd, NULL, true);
+}
+
+void PickAndChangeBackgroundColor()
+{
+	CHOOSECOLOR cc;
+	static COLORREF acrCustClr[16];
+	HBRUSH hbrush;
+	static DWORD rgbCurrent;
+	ZeroMemory(&cc, sizeof(CHOOSECOLOR));
+	cc.lStructSize = sizeof(CHOOSECOLOR);
+	cc.hwndOwner = windowhWnd;
+	cc.lpCustColors = (LPDWORD)acrCustClr;
+	cc.rgbResult = rgbCurrent;
+	cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+	if (ChooseColor(&cc) == TRUE) {
+		RECT rc;
+		GetClientRect(windowhWnd, &rc);
+		HBRUSH newcolor;
+		newcolor = CreateSolidBrush(cc.rgbResult);
+		SetClassLongPtr(windowhWnd, GCLP_HBRBACKGROUND, (LONG)newcolor);
+		InvalidateRect(windowhWnd, &rc, TRUE);
+	}
 }
