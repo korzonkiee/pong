@@ -3,6 +3,8 @@
 
 #define MAX_LOADSTRING 100
 
+#define MAX_SCORE_LENGTH 5
+
 #define WINDOW_WIDTH 200
 #define WINDOW_HEIGHT 300
 
@@ -36,7 +38,10 @@ void				AddWindowTransparency(HWND hWnd, int alpha);
 void				CenterWindow(HWND hWnd);
 void				MovePaddle();
 void				DetectCollisionWithPaddle();
+int					GetNumberOfDigits(int x);
+void				ConvertIntToWChar(wchar_t *buffer, int x);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK	PaddleWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK    BallWndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
@@ -50,6 +55,8 @@ int PaddleY;
 
 int BallX = 100;
 int BallY = 100;
+
+int CurrentScore = 0;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -116,7 +123,7 @@ ATOM PaddleRegisterClass(HINSTANCE hInstance)
 	wcex.cbSize = sizeof(WNDCLASSEX);
 
 	wcex.style = CS_HREDRAW | CS_VREDRAW;
-	wcex.lpfnWndProc = WndProc;
+	wcex.lpfnWndProc = PaddleWndProc;
 	wcex.cbClsExtra = 0;
 	wcex.cbWndExtra = 0;
 	wcex.hInstance = hInstance;
@@ -190,7 +197,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	AddWindowTransparency(paddlehWnd, 100);
 	ShowWindow(paddlehWnd, nCmdShow);
 	UpdateWindow(paddlehWnd);
-
 
 	// Create ball window
 
@@ -304,6 +310,55 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
+LRESULT CALLBACK PaddleWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+	case WM_COMMAND:
+	{
+		int wmId = LOWORD(wParam);
+		switch (wmId)
+		{
+		case IDM_EXIT:
+			DestroyWindow(hWnd);
+			break;
+		default:
+			return DefWindowProc(hWnd, message, wParam, lParam);
+		}
+	}
+	break;
+	case WM_MOUSEMOVE:
+		if (!GAMEOVER)
+			MovePaddle();
+		break;
+	case WM_PAINT:
+	{
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+		RECT r;
+		GetClientRect(hWnd, &r);
+		SetBkMode(hdc, TRANSPARENT);
+
+		wchar_t buffer[MAX_SCORE_LENGTH + 1];
+		ConvertIntToWChar(buffer, CurrentScore);
+
+		//In order to make DT_VCENTER flag work we have to ensure that text
+		//is singlelined.
+		DrawText(hdc, buffer, GetNumberOfDigits(CurrentScore),
+			&r, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+
+		EndPaint(hWnd, &ps);
+	}
+	break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	return 0;
+}
+
 LRESULT CALLBACK BallWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
@@ -341,6 +396,8 @@ LRESULT CALLBACK BallWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 	}
 	return 0;
 }
+
+
 
 VOID CALLBACK BallTimerProc(HWND hWnd, UINT message, UINT idTimer, DWORD dwTime)
 {
@@ -391,13 +448,15 @@ void DetectCollisionWithPaddle()
 {
 	if (BallY + BALL_RADIUS >= PaddleY)
 	{
-		if (BallX < PaddleX || BallX > PaddleX + PADDLE_WIDTH)
+		if (BallX + BALL_RADIUS / 2 < PaddleX || BallX + BALL_RADIUS / 2 > PaddleX + PADDLE_WIDTH)
 		{
 			GAMEOVER = true;
 		}
 		else
 		{
 			BallDirY *= -1;
+			CurrentScore++;
+			InvalidateRect(paddlehWnd, NULL, true);
 		}
 	}
 }
@@ -420,4 +479,18 @@ void MovePaddle()
 		PADDLE_WIDTH, PADDLE_HEIGHT,
 		true
 	);
+}
+
+int GetNumberOfDigits(int x)
+{
+	int numberOfDigits = 1;
+	while (x /= 10)
+		numberOfDigits++;
+
+	return numberOfDigits;
+}
+
+void ConvertIntToWChar(wchar_t *buffer, int x)
+{
+	wsprintfW(buffer, L"%d", CurrentScore);
 }
