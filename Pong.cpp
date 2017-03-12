@@ -31,6 +31,7 @@ VOID CALLBACK		BallTimerProc(HWND hWnd, UINT message, UINT idTimer, DWORD dwTime
 BOOL                InitInstance(HINSTANCE, int);
 void				CalculatePaddleInitialPosition(HWND hWnd, int *x, int *y);
 void				CalculateBallInitialPosition(HWND hWnd, int *x, int *y);
+void				SetWindowAlwaysOnTop(HWND hWnd);
 void				AddWindowTransparency(HWND hWnd, int alpha);
 void				CenterWindow(HWND hWnd);
 void				MovePaddle();
@@ -157,7 +158,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 	// Create main window
 
-	HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_EX_LAYERED | WS_MAXIMIZEBOX,
+	HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_EX_LAYERED | WS_MAXIMIZEBOX,
 		CW_USEDEFAULT, 0, WINDOW_WIDTH, WINDOW_HEIGHT, nullptr, nullptr, hInstance, nullptr);
 
 	if (!hWnd)
@@ -166,6 +167,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	}
 	windowhWnd = hWnd;
 
+	SetWindowAlwaysOnTop(hWnd);
 	AddWindowTransparency(hWnd, 80);
 	CenterWindow(hWnd);
 
@@ -229,6 +231,11 @@ void CalculateBallInitialPosition(HWND hWnd, int *x, int *y)
 
 	*x = (rc.right - rc.left) / 2 - BALL_RADIUS / 2;
 	*y = (rc.bottom - rc.top) / 2 - BALL_RADIUS / 2;
+}
+
+void SetWindowAlwaysOnTop(HWND hWnd)
+{
+	SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
 }
 
 void AddWindowTransparency(HWND hWnd, int alpha)
