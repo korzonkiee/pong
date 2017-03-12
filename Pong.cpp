@@ -40,6 +40,7 @@ void				MovePaddle();
 void				DetectCollisionWithPaddle();
 int					GetNumberOfDigits(int x);
 void				ConvertIntToWChar(wchar_t *buffer, int x);
+void				CreateNewGame();
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	PaddleWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK    BallWndProc(HWND, UINT, WPARAM, LPARAM);
@@ -279,6 +280,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		int wmId = LOWORD(wParam);
 		switch (wmId)
 		{
+		case IDM_NEWGAME:
+			CreateNewGame();
+			break;
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
 			break;
@@ -493,4 +497,14 @@ int GetNumberOfDigits(int x)
 void ConvertIntToWChar(wchar_t *buffer, int x)
 {
 	wsprintfW(buffer, L"%d", CurrentScore);
+}
+
+void CreateNewGame()
+{
+	BallX = 100;
+	BallY = 100;
+	BallDirX = 1;
+	BallDirY = 1;
+
+	GAMEOVER = false;
 }
