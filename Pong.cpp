@@ -66,6 +66,14 @@ int CurrentScore = 0;
 
 wchar_t *filePath = NULL;
 
+enum BackgroundType
+{
+	BackgroundColor,
+	BackgroundImage
+};
+
+BackgroundType CurrentBackgroundType = BackgroundColor;
+
 enum BackgroundMode
 {
 	TitledMode = 0,
@@ -289,9 +297,12 @@ void CenterWindow(HWND hWnd)
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	RECT r;
+	HMENU hMenu = GetMenu(hWnd);
 
 	switch (message)
 	{
+	case WM_CREATE:
+		break;
 	case WM_COMMAND:
 	{
 		int wmId = LOWORD(wParam);
@@ -302,9 +313,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDM_BGCOLOR:
 			PickAndChangeBackgroundColor();
+			CurrentBackgroundType = BackgroundColor;
 			break;
 		case IDM_BGBMP:
 			ChooseFile(hWnd, &filePath);
+			CurrentBackgroundType = BackgroundImage;
 			GetClientRect(hWnd, &r);
 			InvalidateRect(hWnd, &r, true);
 			break;
@@ -333,6 +346,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hWnd, &ps);
+
+		if (CurrentBackgroundType == BackgroundImage)
+		{
+			EnableMenuItem(hMenu, IDM_BGTILE, MF_ENABLED);
+			EnableMenuItem(hMenu, IDM_BGSTRETCH, MF_ENABLED);
+
+			if (CurrentBackgroundMode == TitledMode)
+			{
+				CheckMenuItem(hMenu, IDM_BGTILE, MF_BYCOMMAND | MF_CHECKED);
+				CheckMenuItem(hMenu, IDM_BGSTRETCH, MF_BYCOMMAND | MF_UNCHECKED);
+			}
+			else if (CurrentBackgroundMode == StretchedMode)
+			{
+				CheckMenuItem(hMenu, IDM_BGSTRETCH, MF_BYCOMMAND | MF_CHECKED);
+				CheckMenuItem(hMenu, IDM_BGTILE, MF_BYCOMMAND | MF_UNCHECKED);
+			}
+		}
+		else if (CurrentBackgroundType == BackgroundColor)
+		{
+			EnableMenuItem(hMenu, IDM_BGTILE, MF_DISABLED);
+			EnableMenuItem(hMenu, IDM_BGSTRETCH, MF_DISABLED);
+		}
+
 		if (filePath != nullptr)
 		{
 			DrawBitmap(hWnd, hdc, filePath);
