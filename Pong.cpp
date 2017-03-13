@@ -3,6 +3,8 @@
 
 #define MAX_LOADSTRING 100
 
+#define MAX_FILELENGTH 256
+
 #define MAX_SCORE_LENGTH 5
 
 #define WINDOW_WIDTH 200
@@ -42,6 +44,8 @@ int					GetNumberOfDigits(int x);
 void				ConvertIntToWChar(wchar_t *buffer, int x);
 void				CreateNewGame();
 void				PickAndChangeBackgroundColor();
+void				ChooseFile(HWND hWnd, wchar_t **filePath);
+void				DrawBitmap(HWND hWnd, HDC hdc, wchar_t *filePath);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	PaddleWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK    BallWndProc(HWND, UINT, WPARAM, LPARAM);
@@ -59,6 +63,8 @@ int BallX = 100;
 int BallY = 100;
 
 int CurrentScore = 0;
+
+wchar_t *filePath = NULL;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -287,6 +293,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case IDM_BGCOLOR:
 			PickAndChangeBackgroundColor();
 			break;
+		case IDM_BGBMP:
+			ChooseFile(hWnd, &filePath);
+			RECT r;
+			GetClientRect(hWnd, &r);
+			InvalidateRect(hWnd, &r, true);
+			break;
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
 			break;
@@ -302,6 +314,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hWnd, &ps);
+		if (filePath != nullptr)
+		{
+			DrawBitmap(hWnd, hdc, filePath);
+		}
 		EndPaint(hWnd, &ps);
 	}
 	break;
@@ -317,6 +333,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	return 0;
 }
+
+
 
 LRESULT CALLBACK PaddleWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -539,4 +557,65 @@ void PickAndChangeBackgroundColor()
 		SetClassLongPtr(windowhWnd, GCLP_HBRBACKGROUND, (LONG)newcolor);
 		InvalidateRect(windowhWnd, &rc, TRUE);
 	}
+}
+
+void ChooseFile(HWND hWnd, wchar_t **filePath)
+{
+	OPENFILENAME ofn;
+	wchar_t szFile[MAX_FILELENGTH];
+	HANDLE hf;
+
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = hWnd;
+	ofn.lpstrFile = szFile;
+	ofn.lpstrFile[0] = '\0';
+	ofn.nMaxFile = sizeof(szFile);
+	ofn.lpstrFilter = L"*.BMP";
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFileTitle = NULL;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+	if (GetOpenFileName(&ofn) == TRUE)
+	{
+		hf = CreateFile(ofn.lpstrFile,
+			GENERIC_READ,
+			0,
+			(LPSECURITY_ATTRIBUTES)NULL,
+			OPEN_EXISTING,
+			FILE_ATTRIBUTE_NORMAL,
+			(HANDLE)NULL);
+
+		*filePath = (wchar_t*)malloc(sizeof(wchar_t) * sizeof(szFile));
+		wcscpy_s(*filePath, sizeof(szFile), szFile);
+
+		CloseHandle(hf);
+	}
+
+}
+
+void DrawBitmap(HWND hWnd, HDC hdc, wchar_t *filePath)
+{
+	HBITMAP hbmPicture;
+	hbmPicture = (HBITMAP)LoadImage(NULL, filePath, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+	int E = GetLastError();
+
+	HDC hdcNew = CreateCompatibleDC(hdc);
+	HBITMAP hbmOld = (HBITMAP)SelectObject(hdcNew, hbmPicture);
+
+	BITMAP bmInfo;
+	GetObject(hbmPicture, sizeof(bmInfo), &bmInfo);
+
+	RECT r;
+	GetClientRect(hWnd, &r);
+
+	BitBlt(hdc, 0, 0, bmInfo.bmWidth, bmInfo.bmHeight, hdcNew, 0, 0, SRCCOPY);
+	StretchBlt(hdc, 0, 0, r.right, r.bottom, hdcNew, 0, 0, bmInfo.bmWidth, bmInfo.bmHeight, SRCCOPY);
+
+	DeleteObject(hbmPicture);
+	SelectObject(hdcNew, hbmOld);
+	DeleteDC(hdcNew);
 }
