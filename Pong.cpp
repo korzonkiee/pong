@@ -66,6 +66,14 @@ int CurrentScore = 0;
 
 wchar_t *filePath = NULL;
 
+enum BackgroundMode
+{
+	TitledMode = 0,
+	StretchedMode = 1
+};
+
+BackgroundMode CurrentBackgroundMode = TitledMode;
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
 	_In_ LPWSTR    lpCmdLine,
@@ -280,6 +288,8 @@ void CenterWindow(HWND hWnd)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	RECT r;
+
 	switch (message)
 	{
 	case WM_COMMAND:
@@ -295,7 +305,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDM_BGBMP:
 			ChooseFile(hWnd, &filePath);
-			RECT r;
+			GetClientRect(hWnd, &r);
+			InvalidateRect(hWnd, &r, true);
+			break;
+		case IDM_BGSTRETCH:
+			CurrentBackgroundMode = StretchedMode;
+			GetClientRect(hWnd, &r);
+			InvalidateRect(hWnd, &r, true);
+			break;
+		case IDM_BGTILE:
+			CurrentBackgroundMode = TitledMode;
 			GetClientRect(hWnd, &r);
 			InvalidateRect(hWnd, &r, true);
 			break;
@@ -333,8 +352,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	return 0;
 }
-
-
 
 LRESULT CALLBACK PaddleWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -601,8 +618,6 @@ void DrawBitmap(HWND hWnd, HDC hdc, wchar_t *filePath)
 	HBITMAP hbmPicture;
 	hbmPicture = (HBITMAP)LoadImage(NULL, filePath, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 
-	int E = GetLastError();
-
 	HDC hdcNew = CreateCompatibleDC(hdc);
 	HBITMAP hbmOld = (HBITMAP)SelectObject(hdcNew, hbmPicture);
 
@@ -613,7 +628,22 @@ void DrawBitmap(HWND hWnd, HDC hdc, wchar_t *filePath)
 	GetClientRect(hWnd, &r);
 
 	BitBlt(hdc, 0, 0, bmInfo.bmWidth, bmInfo.bmHeight, hdcNew, 0, 0, SRCCOPY);
-	StretchBlt(hdc, 0, 0, r.right, r.bottom, hdcNew, 0, 0, bmInfo.bmWidth, bmInfo.bmHeight, SRCCOPY);
+
+	if (CurrentBackgroundMode == TitledMode)
+	{
+		for (int i = 0; i < r.right; i += bmInfo.bmWidth)
+		{
+			for (int j = 0; j < r.bottom; j += bmInfo.bmHeight)
+			{
+				BitBlt(hdc, i, j, bmInfo.bmWidth, bmInfo.bmHeight, hdcNew, 0, 0, SRCCOPY);
+			}
+		}
+	}
+	else if (CurrentBackgroundMode == StretchedMode)
+	{
+		StretchBlt(hdc, 0, 0, r.right, r.bottom, hdcNew, 0, 0, bmInfo.bmWidth, bmInfo.bmHeight, SRCCOPY);
+	}
+	
 
 	DeleteObject(hbmPicture);
 	SelectObject(hdcNew, hbmOld);
