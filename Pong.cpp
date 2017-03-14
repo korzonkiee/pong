@@ -63,6 +63,7 @@ int BallX = 100;
 int BallY = 100;
 
 int CurrentScore = 0;
+HBRUSH CurrentBackgroundColor;
 
 wchar_t *filePath = NULL;
 
@@ -362,16 +363,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				CheckMenuItem(hMenu, IDM_BGSTRETCH, MF_BYCOMMAND | MF_CHECKED);
 				CheckMenuItem(hMenu, IDM_BGTILE, MF_BYCOMMAND | MF_UNCHECKED);
 			}
+
+			if (filePath != nullptr)
+			{
+				DrawBitmap(hWnd, hdc, filePath);
+			}
 		}
 		else if (CurrentBackgroundType == BackgroundColor)
 		{
 			EnableMenuItem(hMenu, IDM_BGTILE, MF_DISABLED);
 			EnableMenuItem(hMenu, IDM_BGSTRETCH, MF_DISABLED);
-		}
 
-		if (filePath != nullptr)
-		{
-			DrawBitmap(hWnd, hdc, filePath);
+			CheckMenuItem(hMenu, IDM_BGTILE, MF_BYCOMMAND | MF_UNCHECKED);
+			CheckMenuItem(hMenu, IDM_BGSTRETCH, MF_BYCOMMAND | MF_UNCHECKED);
+
+			if (CurrentBackgroundColor != NULL)
+			{
+				RECT rc;
+				GetClientRect(windowhWnd, &rc);
+				SetClassLongPtr(windowhWnd, GCLP_HBRBACKGROUND, (LONG) CurrentBackgroundColor);
+			}
 		}
 		EndPaint(hWnd, &ps);
 	}
@@ -605,9 +616,8 @@ void PickAndChangeBackgroundColor()
 	if (ChooseColor(&cc) == TRUE) {
 		RECT rc;
 		GetClientRect(windowhWnd, &rc);
-		HBRUSH newcolor;
-		newcolor = CreateSolidBrush(cc.rgbResult);
-		SetClassLongPtr(windowhWnd, GCLP_HBRBACKGROUND, (LONG)newcolor);
+		CurrentBackgroundColor = CreateSolidBrush(cc.rgbResult);
+		SetClassLongPtr(windowhWnd, GCLP_HBRBACKGROUND, (LONG) CurrentBackgroundColor);
 		InvalidateRect(windowhWnd, &rc, TRUE);
 	}
 }
@@ -624,7 +634,7 @@ void ChooseFile(HWND hWnd, wchar_t **filePath)
 	ofn.lpstrFile = szFile;
 	ofn.lpstrFile[0] = '\0';
 	ofn.nMaxFile = sizeof(szFile);
-	ofn.lpstrFilter = L"*.BMP";
+	ofn.lpstrFilter = L"*.BMP\0";
 	ofn.nFilterIndex = 1;
 	ofn.lpstrFileTitle = NULL;
 	ofn.nMaxFileTitle = 0;
